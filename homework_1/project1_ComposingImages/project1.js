@@ -49,7 +49,7 @@ function composite(bgImg, fgImg, fgOpac, fgPos) {
             bgData[bgIdx + 0] = Math.round((fgA * fgR + (1 - fgA) * bgA * bgR) / totA); // Red
             bgData[bgIdx + 1] = Math.round((fgA * fgG + (1 - fgA) * bgA * bgG) / totA); // Green
             bgData[bgIdx + 2] = Math.round((fgA * fgB + (1 - fgA) * bgA * bgB) / totA); // Blue
-            bgData[bgIdx + 3] = Math.round(totA);   // Alpha
+            bgData[bgIdx + 3] = Math.round(totA * 255);   // Alpha
         }
     }
     console.log(bgData);
