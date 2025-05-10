@@ -52,7 +52,7 @@ const vertexShader = /* glsl */ `
 		// Apply Model-View-Projection
 		gl_Position = mvp * p;
 		// Pass uv to fragment shader
-		vTexCoord = texCoord;
+		vTexCoord = vec2(texCoord.x, 1.0 - texCoord.y);
 	}
 `;
 
@@ -100,7 +100,7 @@ class MeshDrawer {
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
 		// State flags
