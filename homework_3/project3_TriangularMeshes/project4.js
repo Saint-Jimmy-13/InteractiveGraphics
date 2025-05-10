@@ -4,7 +4,6 @@
 // The given projection matrix is also a 4x4 matrix stored as an array in column-major order.
 // You can use the MatrixMult function defined in project4.html to multiply two 4x4 matrices in the same format.
 function GetModelViewProjection(projectionMatrix, translationX, translationY, translationZ, rotationX, rotationY) {
-	// DONE Modify the code below to form the transformation matrix.
 	// Translation matrix
 	var trans = [
 		1, 0, 0, 0,
@@ -36,11 +35,77 @@ function GetModelViewProjection(projectionMatrix, translationX, translationY, tr
 	return mvp;
 }
 
-// TODO Complete the implementation of the following class.
+const vertexShader = /* glsl */ `
+	attribute vec3 pos;
+	attribute vec2 texCoord;
+	uniform mat4 mvp;
+	uniform bool swapYZ;
+	varying vec2 vTexCoord;
+	void main() {
+		// Optionally swap y and z axes
+		vec4 p = vec4(pos, 1.0);
+		if (swapYZ) {
+			float y = p.y;
+			p.y = p.z;
+			p.z = y;
+		}
+		// Apply Model-View-Projection
+		gl_Position = mvp * p;
+		// Pass uv to fragment shader
+		vTexCoord = texCoord;
+	}
+`;
+
+const fragmentShader = /* glsl */ `
+	precision mediump float;
+	uniform bool showTexture;
+	uniform sampler2D uTexture;
+	varying vec2 vTexCoord;
+	void main() {
+		if (showTexture) {
+			// Sample texture
+			gl_FragColor = texture2D(uTexture, vTexCoord);
+		}
+		else {
+			// Depth-based green channel
+			float d = gl_FragCoord.z;
+			gl_FragColor = vec4(1.0, d * d, 0.0, 1.0);
+		}
+	}
+`;
+
 class MeshDrawer {
 	// The constructor is a good place for taking care of the necessary initializations.
 	constructor() {
-		// TODO initializations
+		// Compile and link shaders
+		this.prog = InitShaderProgram(vertexShader, fragmentShader);
+
+		// Attribute locations
+		this.posLoc = gl.getAttributeLocation(this.prog, 'pos');
+		this.texCoordLoc = gl.getAttributeLocation(this.prog, 'texCoord');
+
+		// Uniform locations
+		this.mvpLoc = gl.getUniformLocation(this.prog, 'mvp');
+		this.swapLoc = gl.getUniformLocation(this.prog, 'swapYZ');
+		this.showTexLoc = gl.getUniformLocation(this.prog, 'showTexture');
+		this.texSamplerLoc = gl.getUniformLocation(this.prog, 'uTexture');
+
+		// Create position and uv buffers
+		this.posBuffer = gl.createBuffer();
+		this.texBuffer = gl.createBuffer();
+		this.numVerts = 0;
+
+		// Create and configure texture object
+		this.texture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+		// State flags
+		this.swapFlag = false;
+		this.showTexFlag = false;
 	}
 	
 	// This method is called every time the user opens an OBJ file.
@@ -53,44 +118,72 @@ class MeshDrawer {
 	// Similarly, every two consecutive elements in the texCoords array
 	// form the texture coordinate of a vertex.
 	// Note that this method can be called multiple times.
-	setMesh( vertPos, texCoords ) {
-		// TODO Update the contents of the vertex buffer objects.
-		this.numTriangles = vertPos.length / 3;
+	setMesh(vertPos, texCoords) {
+		// Upload positions
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertPos), gl.STATIC_DRAW);
+
+		// Upload uvs
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.texBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+
+		// Store vertex count
+		this.numVerts = vertPos.length / 3;
 	}
 	
 	// This method is called when the user changes the state of the
 	// "Swap Y-Z Axes" checkbox. 
 	// The argument is a boolean that indicates if the checkbox is checked.
-	swapYZ( swap ) {
-		// TODO Set the uniform parameter(s) of the vertex shader
+	swapYZ(swap) {
+		this.swapFlag = swap;
 	}
 	
 	// This method is called to draw the triangular mesh.
 	// The argument is the transformation matrix, the same matrix returned
 	// by the GetModelViewProjection function above.
-	draw( trans ) {
-		// TODO Complete the WebGL initializations before drawing
+	draw(trans) {
+		gl.useProgram(this.prog);
 
-		gl.drawArrays( gl.TRIANGLES, 0, this.numTriangles );
+		// Set MVP and flags
+		gl.uniformMatrix4vf(this.mvpLoc, false, trans);
+		gl.uniform1i(this.swapLoc, this.swapFlag ? 1 : 0);
+		gl.uniform1i(this.showTexLoc, this.showTexFlag ? 1 : 0);
+
+		// Bind and assign position attribute
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
+		gl.enableVertexAttribArray(this.posLoc);
+		gl.vertexAttribPointer(this.posLoc, 3, gl.FLOAT, false, 0, 0);
+
+		// Bind and assign uv attribute
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.texBuffer);
+		gl.enableVertexAttribArray(this.texCoordLoc);
+		gl.vertexAttribPointer(this.texCoordLoc, 2, gl.FLOAT, false, 0, 0);
+
+		// Bind texture unit 0
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+		gl.uniform1i(this.texSamplerLoc, 0);
+
+		// Draw triangles
+		gl.drawArrays(gl.TRIANGLES, 0, this.numVerts);
 	}
 	
 	// This method is called to set the texture of the mesh.
 	// The argument is an HTML IMG element containing the texture data.
-	setTexture( img ) {
-		// TODO Bind the texture
+	setTexture(img) {
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
 		// You can set the texture image data using the following command.
-		gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img );
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
 
-		// TODO Now that we have a texture, it might be a good idea to set
-		// some uniform parameter(s) of the fragment shader, so that it uses the texture.
+		gl.generateMipmap(gl.TEXTURE_2D);
 	}
 	
 	// This method is called when the user changes the state of the
 	// "Show Texture" checkbox. 
 	// The argument is a boolean that indicates if the checkbox is checked.
-	showTexture( show ) {
-		// TODO set the uniform parameter(s) of the fragment shader to specify if it should use the texture.
+	showTexture(show) {
+		this.showTexFlag = show;
 	}
-	
 }
