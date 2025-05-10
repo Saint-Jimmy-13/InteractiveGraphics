@@ -81,8 +81,8 @@ class MeshDrawer {
 		this.prog = InitShaderProgram(vertexShader, fragmentShader);
 
 		// Attribute locations
-		this.posLoc = gl.getAttributeLocation(this.prog, 'pos');
-		this.texCoordLoc = gl.getAttributeLocation(this.prog, 'texCoord');
+		this.posLoc = gl.getAttribLocation(this.prog, 'pos');
+		this.texCoordLoc = gl.getAttribLocation(this.prog, 'texCoord');
 
 		// Uniform locations
 		this.mvpLoc = gl.getUniformLocation(this.prog, 'mvp');
@@ -98,8 +98,8 @@ class MeshDrawer {
 		// Create and configure texture object
 		this.texture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
@@ -145,7 +145,7 @@ class MeshDrawer {
 		gl.useProgram(this.prog);
 
 		// Set MVP and flags
-		gl.uniformMatrix4vf(this.mvpLoc, false, trans);
+		gl.uniformMatrix4fv(this.mvpLoc, false, trans);
 		gl.uniform1i(this.swapLoc, this.swapFlag ? 1 : 0);
 		gl.uniform1i(this.showTexLoc, this.showTexFlag ? 1 : 0);
 
@@ -178,6 +178,8 @@ class MeshDrawer {
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
 
 		gl.generateMipmap(gl.TEXTURE_2D);
+		
+		this.showTexFlag = true;
 	}
 	
 	// This method is called when the user changes the state of the
