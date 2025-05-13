@@ -47,14 +47,19 @@ const vertexShader = /* glsl */ `
 	varying vec2 vTexCoord;
 	void main() {
 		vec3 p = aPos;
+		vec3 n = aNorm;
 		if (uSwapYZ) {
 			float y = p.y;
 			p.y = p.z;
 			p.z = y;
+
+			float t = n.y;
+			n.y = n.z;
+			n.z = t;
 		}
 		vec4 posMV = uMV * vec4(p, 1.0);
 		vPos = posMV.xyz;
-		vNorm = normalize(uNormalMat * aNorm);
+		vNorm = normalize(uNormalMat * n);
 		vTexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);
 		gl_Position = uMVP * vec4(p, 1.0);
 	}
