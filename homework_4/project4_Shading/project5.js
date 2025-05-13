@@ -200,6 +200,11 @@ class MeshDrawer {
 		gl.uniform1i(this.uSwapYZLoc, this.swapFlag ? 1 : 0);
 		gl.uniform1i(this.uTextureLoc, 0);
         
+		// Bind texture unit 0
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+		gl.uniform1i(this.uTextureLoc, 0);
+
 		// Draw triangles
 		gl.drawArrays(gl.TRIANGLES, 0, this.numVerts);
 	}
@@ -225,7 +230,7 @@ class MeshDrawer {
 	// "Show Texture" checkbox. 
 	// The argument is a boolean that indicates if the checkbox is checked.
 	showTexture(show) {
-		this.showTexture = show;
+		this.showTexFlag = show;
 	}
 	
 	// This method is called to set the incoming light direction
