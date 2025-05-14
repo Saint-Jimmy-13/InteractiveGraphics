@@ -203,7 +203,6 @@ class MeshDrawer {
 		gl.uniform1f(this.uShineLoc, this.shininess);
 		gl.uniform1i(this.uShowTexLoc, this.showTexFlag ? 1 : 0);
 		gl.uniform1i(this.uSwapYZLoc, this.swapFlag ? 1 : 0);
-		gl.uniform1i(this.uTextureLoc, 0);
         
 		// Bind texture unit 0
 		gl.activeTexture(gl.TEXTURE0);
