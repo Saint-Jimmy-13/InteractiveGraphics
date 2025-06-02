@@ -39,9 +39,29 @@ var raytraceFS = /* glsl */ `
 	vec3 Shade(Material mtl, vec3 position, vec3 normal, vec3 view) {
 		vec3 color = vec3(0, 0, 0);
 		for (int i = 0; i < NUM_LIGHTS; ++i) {
-			// TO-DO: Check for shadows
-			// TO-DO: If not shadowed, perform shading using the Blinn model
-			color += mtl.k_d * lights[i].intensity;	// change this line
+			vec3 lightDir = normalize(lights[i].position - position);
+
+			// Shadow ray
+			Ray shadowRay;
+			shadowRay.pos = position + normal * 0.001;	// offset to avoid self-intersection
+			shadowRay.dir = lightDir;
+
+			HitInfo shadowHit;
+			if (IntersectRay(shadowHit, shadowRay)) {
+				float distToLight = length(lights[i].position - position);
+				if (shadowHit.t < distToLight) continue;	// in shadow
+			}
+
+			// Diffuse
+			float diff = max(dot(normal, lightDir), 0.0);
+			vec3 diffuse = mtl.k_d * diff * lights[i].intensity;
+
+			// Specular (Blinn-Phong)
+			vec3 halfVec = normalize(lightDir + view);
+			float spec = pow(max(dot(normal, halfVec), 0.0), mtl.n);
+			vec3 specular = mtl.k_s * spec * lights[i].intensity;
+
+			color += diffuse + specular;
 		}
 		return color;
 	}
