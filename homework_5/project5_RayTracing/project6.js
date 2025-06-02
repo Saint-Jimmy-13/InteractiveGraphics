@@ -54,8 +54,24 @@ var raytraceFS = /* glsl */ `
 		hit.t = 1e30;
 		bool foundHit = false;
 		for (int i = 0; i < NUM_SPHERES; ++i) {
-			// TO-DO: Test for ray-sphere intersection
-			// TO-DO: If intersection is found, update the given HitInfo
+			vec3 oc = ray.pos - spheres[i].center;
+			float a = dot(ray.dir, ray.dir);
+			float b = 2.0 * dot(oc, ray.dir);
+			float c = dot(oc, oc) - spheres[i].radius * spheres[i].radius;
+			float delta = (b * b) - (4 * a * c);
+			if (delta > 0.0) {
+				float sqrtDelta = sqrt(delta);
+				float t0 = (-b - sqrtDelta) / (2.0 * a);
+				float t1 = (-b + sqrtDelta) / (2.0 * a);
+				float t = (t0 > 0.001) ? t0 : ((t1 > 0.001) ? t1 : 1e30);
+				if (t < hit.t) {
+					hit.t = t;
+					hit.position = ray.pos + ray.dir * t;
+					hit.normal = normalize(hit.position - spheres[i].center);
+					hit.mtl = spheres[i].mtl;
+					foundHit = true;
+				}
+			}
 		}
 		return foundHit;
 	}
