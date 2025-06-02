@@ -78,7 +78,7 @@ var raytraceFS = /* glsl */ `
 			float a = dot(ray.dir, ray.dir);
 			float b = 2.0 * dot(oc, ray.dir);
 			float c = dot(oc, oc) - spheres[i].radius * spheres[i].radius;
-			float delta = (b * b) - (4 * a * c);
+			float delta = (b * b) - (4.0 * a * c);
 			if (delta > 0.0) {
 				float sqrtDelta = sqrt(delta);
 				float t0 = (-b - sqrtDelta) / (2.0 * a);
@@ -106,18 +106,22 @@ var raytraceFS = /* glsl */ `
 			
 			// Compute reflections
 			vec3 k_s = hit.mtl.k_s;
+			Ray r = ray;	// this is the reflection ray
+			HitInfo h = hit;	// reflection hit info
 			for (int bounce = 0; bounce < MAX_BOUNCES; ++bounce) {
 				if (bounce >= bounceLimit) break;
-				if (hit.mtl.k_s.r + hit.mtl.k_s.g + hit.mtl.k_s.b <= 0.0) break;
+				if (h.mtl.k_s.r + h.mtl.k_s.g + h.mtl.k_s.b <= 0.0) break;
 				
-				Ray r;	// this is the reflection ray
-				HitInfo h;	// reflection hit info
-				
-				// TO-DO: Initialize the reflection ray
+				// Initialize the reflection ray
+				r.pos = h.position + h.normal * 0.001;	// offset to avoid glitch
+				r.dir = reflect(r.dir, h.normal);
+				r.dir = normalize(r.dir);
 				
 				if (IntersectRay(h, r)) {
-					// TO-DO: Hit found, so shade the hit point
-					// TO-DO: Update the loop variables for tracing the next reflection ray
+					vec3 viewRef = normalize(-r.dir);
+					vec3 refColor = Shade(h.mtl, h.position, h.normal, viewRef);
+					clr += k_s * refColor;
+					k_s *= h.mtl.k_s;	// attenuate reflection by material specular
 				}
 				else {
 					// The refleciton ray did not intersect with anything,
