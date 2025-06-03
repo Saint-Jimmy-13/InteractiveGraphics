@@ -73,20 +73,21 @@ var raytraceFS = /* glsl */ `
 	// that first intersects with the ray.
 	// Returns true if an intersection is found.
 	bool IntersectRay(inout HitInfo hit, Ray ray) {
+		ray.dir = normalize(ray.dir);
 		hit.t = 1e30;
 		bool foundHit = false;
 		for (int i = 0; i < NUM_SPHERES; ++i) {
 			vec3 oc = ray.pos - spheres[i].center;
-			float a = dot(ray.dir, ray.dir);
+			float a = dot(ray.dir, ray.dir);	// a = 1.0 with normalized ray.dir
 			float b = 2.0 * dot(oc, ray.dir);
 			float c = dot(oc, oc) - spheres[i].radius * spheres[i].radius;
 			float delta = (b * b) - (4.0 * a * c);
-			if (delta > 0.0) {
+			if (delta >= 0.0) {
 				float sqrtDelta = sqrt(delta);
 				float t0 = (-b - sqrtDelta) / (2.0 * a);
 				float t1 = (-b + sqrtDelta) / (2.0 * a);
-				float t = (t0 > EPSILON) ? t0 : ((t1 > EPSILON) ? t1 : 1e30);
-				if (t < hit.t) {
+				float t = min(t0, t1);
+				if (t > 0.0 && t <= hit.t) {
 					hit.t = t;
 					hit.position = ray.pos + ray.dir * t;
 					hit.normal = normalize(hit.position - spheres[i].center);
@@ -136,7 +137,7 @@ var raytraceFS = /* glsl */ `
 			return vec4(clr, 1.0);	// return the accumulated color, including the reflections
 		}
 		else {
-			return vec4(textureCube(envMap, ray.dir.xzy).rgb, 1.0);	// return the environment color
+			return vec4(textureCube(envMap, ray.dir.xzy).rgb, 0.0);	// return the environment color
 		}
 	}
 `;
