@@ -1,4 +1,6 @@
 var raytraceFS = /* glsl */ `
+	const float EPSILON = 0.01;
+
 	struct Ray {
 		vec3 pos;
 		vec3 dir;
@@ -43,7 +45,7 @@ var raytraceFS = /* glsl */ `
 
 			// Shadow ray
 			Ray shadowRay;
-			shadowRay.pos = position + normal * 0.001;	// offset to avoid self-intersection
+			shadowRay.pos = position + normal * EPSILON;	// offset to avoid self-intersection
 			shadowRay.dir = lightDir;
 
 			HitInfo shadowHit;
@@ -83,7 +85,7 @@ var raytraceFS = /* glsl */ `
 				float sqrtDelta = sqrt(delta);
 				float t0 = (-b - sqrtDelta) / (2.0 * a);
 				float t1 = (-b + sqrtDelta) / (2.0 * a);
-				float t = (t0 > 0.001) ? t0 : ((t1 > 0.001) ? t1 : 1e30);
+				float t = (t0 > EPSILON) ? t0 : ((t1 > EPSILON) ? t1 : 1e30);
 				if (t < hit.t) {
 					hit.t = t;
 					hit.position = ray.pos + ray.dir * t;
@@ -99,6 +101,7 @@ var raytraceFS = /* glsl */ `
 	// Given a ray, returns the shaded color where the ray intersects a sphere.
 	// If the ray does not hit a sphere, returns the environment color.
 	vec4 RayTracer(Ray ray) {
+		ray.dir = normalize(ray.dir);
 		HitInfo hit;
 		if (IntersectRay(hit, ray)) {
 			vec3 view = normalize(-ray.dir);
@@ -113,7 +116,7 @@ var raytraceFS = /* glsl */ `
 				if (h.mtl.k_s.r + h.mtl.k_s.g + h.mtl.k_s.b <= 0.0) break;
 				
 				// Initialize the reflection ray
-				r.pos = h.position + h.normal * 0.001;	// offset to avoid glitch
+				r.pos = h.position + h.normal * EPSILON;	// offset to avoid glitch
 				r.dir = reflect(r.dir, h.normal);
 				r.dir = normalize(r.dir);
 				
@@ -130,10 +133,10 @@ var raytraceFS = /* glsl */ `
 					break;	// no more reflections
 				}
 			}
-			return vec4(clr, 1);	// return the accumulated color, including the reflections
+			return vec4(clr, 1.0);	// return the accumulated color, including the reflections
 		}
 		else {
-			return vec4(textureCube(envMap, ray.dir.xzy).rgb, 0);	// return the environment color
+			return vec4(textureCube(envMap, ray.dir.xzy).rgb, 1.0);	// return the environment color
 		}
 	}
 `;
