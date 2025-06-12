@@ -52,7 +52,7 @@ const vertexShader = /* glsl */ `
 			float y = p.y;
 			p.y = p.z;
 			p.z = y;
-
+			
 			float t = n.y;
 			n.y = n.z;
 			n.z = t;
@@ -252,12 +252,77 @@ class MeshDrawer {
 // Its job is to advance the simulation for the given time step duration dt.
 // It updates the given positions and velocities.
 function SimTimeStep(dt, positions, velocities, springs, stiffness, damping, particleMass, gravity, restitution) {
-	var forces = Array( positions.length ); // The total for per particle
+	// Initialize force accumulator
+	var forces = new Array(positions.length);	// The total for per particle
+	for (var i = 0; i < positions.length; ++i) {
+		// start with gravity force (F = m * g)
+		forces[i] = gravity.mul(particleMass);
+	}
 
-	// [TO-DO] Compute the total force of each particle
-	
-	// [TO-DO] Update positions and velocities
-	
-	// [TO-DO] Handle collisions
-	
+	// Accumulate spring and damping forces
+	for (var k = 0; k < springs.length; ++k) {
+		var s = springs[k];
+		var i = s.p0, j = s.p1;
+		var p_i = positions[i], p_j = positions[j];
+		// Vector from j to i
+		var delta = p_i.sub(p_j);
+		var dist = delta.len();
+		if (dist === 0) continue;	// avoid division by zero
+		var dir = delta.div(dist);	// unit direction
+
+		// Spring force (F = -k * (|x_i - x_j| - rest) * dir)
+		var f_spring = dir.mul(-stiffness * (dist - s.rest));
+
+		// Damping force (F = -c * ((v_i - v_j) . dir) * dir)
+		var relVel = velocities[i].sub(velocities[j]);
+		var f_damp = dir.mul(-damping * relVel.dot(dir));
+
+		// Total force (spring + damping)
+		var f_tot = f_spring.add(f_damp);
+
+		// Apply to both ends
+		forces[i].inc(f_tot);
+		forces[j].dec(f_tot);
+	}
+
+	// Integrate velocities and positions (semi-implicit Euler) + wall collisions
+	for (var i = 0; i < positions.length; ++i) {
+		// a = F / m
+		var acc = forces[i].div(particleMass);
+
+		// v <- v + a * dt
+		velocities[i].inc(acc.mul(dt));
+
+		// x <- x + v * dt
+		positions[i].inc(velocities[i].mul(dt));
+
+		// Collide with the cube
+		// X axis
+		if (positions[i].x < -1) {
+			positions[i].x = -1;
+			velocities[i].x = -velocities[i].x * restitution;
+		}
+		else if (positions[i].x > 1) {
+			positions[i].x = 1;
+			velocities[i].x = -velocities[i].x * restitution;
+		}
+		// Y axis
+		if (positions[i].y < -1) {
+			positions[i].y = -1;
+			velocities[i].y = -velocities[i].y * restitution;
+		}
+		else if (positions[i].y > 1) {
+			positions[i].y = 1;
+			velocities[i].y = -velocities[i].y * restitution;
+		}
+		// Z axis
+		if (positions[i].z < -1) {
+			positions[i].z = -1;
+			velocities[i].z = -velocities[i].z * restitution;
+		}
+		else if (positions[i].z > 1) {
+			positions[i].z = 1;
+			velocities[i].z = -velocities[i].z * restitution;
+		}
+	}
 }
