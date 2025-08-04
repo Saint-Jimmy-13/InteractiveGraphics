@@ -106,23 +106,27 @@
                 if (pressed) {
                     const moveDistance = 0.1;
 
-                    if (keyboardEvent.keyCode === 37) {
+                    if (keyboardEvent.keyCode === 37 || keyboardEvent.keyCode === 65) {
                         characterMesh.rotation.y += moveDistance;
                     }
 
-                    else if (keyboardEvent.keyCode === 39) {
+                    else if (keyboardEvent.keyCode === 39 || keyboardEvent.keyCode === 68) {
                         characterMesh.rotation.y -= moveDistance;
                     }
 
-                    else if (keyboardEvent.keyCode === 38) {
+                    else if (keyboardEvent.keyCode === 38 || keyboardEvent.keyCode === 87) {
                         characterMesh.translateZ(-moveDistance);
                     }
 
-                    else if (keyboardEvent.keyCode === 40) {
+                    else if (keyboardEvent.keyCode === 40 || keyboardEvent.keyCode === 83) {
                         characterMesh.translateZ(moveDistance);
                     }
 
                     else if (keyboardEvent.keyCode === 32) {
+                        characterMesh.position.y += moveDistance;
+                    }
+
+                    else if (keyboardEvent.keyCode === 16) {
                         characterMesh.position.y -= moveDistance;
                     }
                 }
@@ -147,6 +151,10 @@
                     if (collisions.length > 0 && collisions[0].distance < directionVector.length()) {
                         console.log("Collision detected");
                         characterMesh.health--;
+                        if (characterMesh.health <= 0) {
+                            characterMesh.health = 0;
+                            alert("Game Over! Your health has reached zero.");
+                        }
                         document.getElementById("healthLabel").firstChild.nodeValue = "Health: " + characterMesh.health;
                         break;
                     }
