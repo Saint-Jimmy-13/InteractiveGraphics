@@ -5,6 +5,9 @@ let scene, camera, renderer, mixer, knight, cameraTarget;
 const keysPressed = {};
 const moveSpeed = 0.1;
 const turnSpeed = 0.05;
+let yaw = 0, pitch = 0;
+const camDistance = 5;
+const camHeight = 2;
 
 // Initialize game scene
 init();
@@ -17,7 +20,7 @@ function init() {
 
     // Setup camera (third-person style)
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 2, 5);   // Behind and above the player
+    camera.position.set(0, camHeight, camDistance);   // Behind and above the player
 
     // Renderer setup
     renderer = new THREE.WebGLRenderer({antialias: true});
@@ -26,11 +29,11 @@ function init() {
     document.body.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    sunLight.position.set(10, 50, 30);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    sunLight.position.set(10, 50, 20);
     sunLight.castShadow = true;
     scene.add(sunLight);
 
@@ -59,7 +62,10 @@ function init() {
         knight = gltf.scene;
         knight.scale.set(0.01, 0.01, 0.01); // Scale down the knight model
         knight.rotation.y = Math.PI;    // Face the knight forward
-        scene.add(knight);
+
+        // Place knight so its feet are at y = 0
+        const box = new THREE.Box3().setFromObject(knight);
+        knight.position.y = -box.min.y;
 
         // Shadow settings
         knight.traverse(obj => {
@@ -68,11 +74,7 @@ function init() {
                 obj.receiveShadow = true;
             }
         });
-
-        // Place knight so its feet are at y = 0
-        const box = new THREE.Box3().setFromObject(knight);
-        const height = box.max.y - box.min.y;
-        knight.position.y = -box.min.y;
+        scene.add(knight);
 
         // Play idle animation
         mixer = new THREE.AnimationMixer(knight);
@@ -101,50 +103,80 @@ function init() {
     // Keyboard input handlers
     window.addEventListener("keydown", e => keysPressed[e.code] = true);
     window.addEventListener("keyup", e => keysPressed[e.code] = false);
+
+    // Pointer lock for mouse look
+    document.body.addEventListener('click', () => {
+        document.body.requestPointerLock();
+    });
+    document.addEventListener('mousemove', onMouseMove);
+}
+
+function onMouseMove(e) {
+    if (document.pointerLockElement !== document.body) return;
+    yaw -= e.movementX * 0.002;
+    pitch -= e.movementY * 0.002;
+    // Clamp pitch between straight up/down
+    const limit = Math.PI / 2 - 0.1;
+    pitch = Math.max(-limit, Math.min(limit, pitch));
+}
+
+function handleMovement() {
+    if (!knight) return;
+
+    // WASD or arrow keys
+    const forward = keysPressed["KeyW"] || keysPressed["ArrowUp"];
+    const backward = keysPressed["KeyS"] || keysPressed["ArrowDown"];
+    const left = keysPressed["KeyA"] || keysPressed["ArrowLeft"];
+    const right = keysPressed["KeyD"] || keysPressed["ArrowRight"];
+
+    // Build movement vector in camera space (XZ plane)
+    let moveX = 0, moveZ = 0;
+    if (forward) moveZ -= 1;
+    if (backward) moveZ += 1;
+    if (left) moveX -= 1;
+    if (right) moveX += 1;
+
+    if (moveX || moveZ) {
+        const dir = new THREE.Vector3(moveX, 0, moveZ).normalize().multiplyScalar(moveSpeed);
+        const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        dir.applyQuaternion(yawQuat);
+        knight.position.add(dir);
+    }
+}
+
+function updateCamera() {
+    if (!knight) return;
+    // Spherical to Cartesian for camera offset
+    const x = camDistance * Math.cos(pitch) * Math.sin(yaw);
+    const y = camDistance * Math.sin(pitch);
+    const z = camDistance * Math.cos(pitch) * Math.cos(yaw);
+
+    cameraTarget.position.set(
+        knight.position.x + x,
+        knight.position.y + y +camHeight,
+        knight.position.z + z
+    );
+
+    // Smoothly interpolate camera
+    camera.position.lerp(cameraTarget.position, 0.1);
+    camera.lookAt(
+        knight.position.x,
+        knight.position.y + camHeight,
+        knight.position.z
+    );
 }
 
 function animate() {
     requestAnimationFrame(animate);
 
     // Update animation mixer
-    const delta = mixer ? 0.0016 : 0;
-    if (mixer) mixer.update(delta);
+    if (mixer) mixer.update(0.016);
 
     // Move character and camera
-    if (knight) {
-        handleMovement();
-        updateCamera();
-    }
+    handleMovement();
+    updateCamera();
 
     renderer.render(scene, camera);
-}
-
-function handleMovement() {
-    const forward = keysPressed["KeyW"] || keysPressed["ArrowUp"];
-    const backward = keysPressed["KeyS"] || keysPressed["ArrowDown"];
-    const left = keysPressed["KeyA"] || keysPressed["ArrowLeft"];
-    const right = keysPressed["KeyD"] || keysPressed["ArrowRight"];
-
-    // Rotate character
-    if (left) knight.rotation.y += turnSpeed;
-    if (right) knight.rotation.y -= turnSpeed;
-
-    // Move forward or backward
-    if (forward || backward) {
-        const dir = new THREE.Vector3(0, 0, forward ? -1 : 1);
-        dir.applyQuaternion(knight.quaternion);
-        knight.position.addScaledVector(dir, moveSpeed);
-    }
-}
-
-function updateCamera() {
-    // Compute camera position behind knight
-    const offset = new THREE.Vector3(0, 2, 5).applyQuaternion(knight.quaternion);
-    cameraTarget.position.copy(knight.position).add(offset);
-
-    // Smoothly interpolate camera
-    camera.position.lerp(cameraTarget.position, 0.1);
-    camera.lookAt(knight.position);
 }
 
 function onWindowResize() {
