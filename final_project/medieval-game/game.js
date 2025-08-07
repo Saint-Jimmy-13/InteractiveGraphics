@@ -22,23 +22,30 @@ function init() {
     // Renderer setup
     renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff0e0, 1.5);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
     sunLight.position.set(10, 50, 30);
+    sunLight.castShadow = true;
     scene.add(sunLight);
 
     // Ground plane
+    const textureLoader = new THREE.TextureLoader();
+    const grass = textureLoader.load('textures/grass.jpg');
+    grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
+    grass.repeat.set(100, 100);
+
     const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(1000, 1000),
-        new THREE.MeshPhongMaterial({color: 0x228B22})  // Grass green
+        new THREE.MeshPhongMaterial({map: grass})
     );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
+    ground.receiveShadow = true;
     scene.add(ground);
 
     // Camera follow target
@@ -50,8 +57,22 @@ function init() {
 
     loader.load('models/knight.glb', gltf => {
         knight = gltf.scene;
-        knight.position.set(0, 0, 0);
+        knight.scale.set(0.01, 0.01, 0.01); // Scale down the knight model
+        knight.rotation.y = Math.PI;    // Face the knight forward
         scene.add(knight);
+
+        // Shadow settings
+        knight.traverse(obj => {
+            if (obj.isMesh) {
+                obj.castShadow = true;
+                obj.receiveShadow = true;
+            }
+        });
+
+        // Place knight so its feet are at y = 0
+        const box = new THREE.Box3().setFromObject(knight);
+        const height = box.max.y - box.min.y;
+        knight.position.y = -box.min.y;
 
         // Play idle animation
         mixer = new THREE.AnimationMixer(knight);
@@ -63,7 +84,14 @@ function init() {
 
     loader.load('models/castle.glb', gltf => {
         const castle = gltf.scene;
+        castle.scale.set(0.2, 0.2, 0.2);
         castle.position.set(0, 0, -20);
+        castle.traverse(obj => {
+            if (obj.isMesh) {
+                obj.castShadow = true;
+                obj.receiveShadow = true;
+            }
+        });
         scene.add(castle);
     });
 
